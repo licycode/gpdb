@@ -8,16 +8,26 @@ import (
 )
 
 var _ = Describe("status", func() {
+	XDescribe("conversion", func() {
+		It("Displays status information for all segments", func() {
+			ensureHubIsUp()
+
+			statusSession := runCommand("status", "conversion")
+			Eventually(statusSession).Should(Exit(0))
+
+			Eventually(statusSession).Should(gbytes.Say("PENDING - DBID 1 - CONTENT ID -1 - MASTER - .+"))
+			Eventually(statusSession).Should(gbytes.Say("PENDING - DBID [0-9] - CONTENT ID [0-9] - PRIMARY - .+"))
+		})
+	})
+
 	Describe("upgrade", func() {
 		It("Reports some demo status from the hub", func() {
 			ensureHubIsUp()
 			statusSession := runCommand("status", "upgrade")
 			Eventually(statusSession).Should(Exit(0))
 
-			expectedDemoOutputPart1 := `PENDING - Configuration Check`
-			expectedDemoOutputPart2 := `PENDING - Install binaries on segments`
-			Eventually(statusSession).Should(gbytes.Say(expectedDemoOutputPart1))
-			Eventually(statusSession).Should(gbytes.Say(expectedDemoOutputPart2))
+			Eventually(statusSession).Should(gbytes.Say("PENDING - Configuration Check"))
+			Eventually(statusSession).Should(gbytes.Say("PENDING - Install binaries on segments"))
 		})
 
 		// ultimately, the status command isn't uniquely responsible for the cases where the hub is down
@@ -25,8 +35,7 @@ var _ = Describe("status", func() {
 		It("Explodes if the hub isn't up", func() {
 			killHub()
 			statusSession := runCommand("status", "upgrade")
-			expectedErrorOutput := `Unable to connect to hub:`
-			Eventually(statusSession.Err).Should(gbytes.Say(expectedErrorOutput))
+			Eventually(statusSession.Err).Should(gbytes.Say("Unable to connect to hub:"))
 			Eventually(statusSession).Should(Exit(1))
 		})
 	})
