@@ -45,13 +45,13 @@ func (r *Reporter) OverallUpgradeStatus() error {
 		return errors.New("Unable to connect to hub: " + err.Error())
 	}
 
-	if status == nil || len(status.ListOfUpgradeStepStatuses) == 0 {
+	if len(status.GetListOfUpgradeStepStatuses()) == 0 {
 		return errors.New("Received no list of upgrade statuses from hub")
 	}
 
-	for _, step := range status.ListOfUpgradeStepStatuses {
-		reportString := fmt.Sprintf("%v %s", step.Status,
-			UpgradeStepsMessage[step.Step])
+	for _, step := range status.GetListOfUpgradeStepStatuses() {
+		reportString := fmt.Sprintf("%v %s", step.GetStatus(),
+			UpgradeStepsMessage[step.GetStep()])
 		gplog.Info(reportString)
 	}
 
@@ -61,14 +61,14 @@ func (r *Reporter) OverallUpgradeStatus() error {
 func (r *Reporter) OverallConversionStatus() error {
 	status, err := r.client.StatusConversion(context.Background(), &pb.StatusConversionRequest{})
 	if err != nil {
-		return errors.New("Unable to connect to hub: " + err.Error())
+		return errors.New("hub returned an error when checking overall conversion status: " + err.Error())
 	}
 
-	if status == nil || status.ConversionStatus == "" {
+	if status.GetConversionStatus() == "" {
 		return errors.New("Received no conversion status from hub")
 	}
 
-	gplog.Info(status.ConversionStatus)
+	gplog.Info(status.GetConversionStatus())
 
 	return nil
 }

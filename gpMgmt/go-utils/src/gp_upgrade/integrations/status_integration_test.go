@@ -1,16 +1,32 @@
 package integrations_test
 
 import (
+	"github.com/onsi/gomega/gbytes"
+	"gp_upgrade/testutils"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
 	. "github.com/onsi/gomega/gexec"
 )
 
 var _ = Describe("status", func() {
-	XDescribe("conversion", func() {
+	Describe("conversion", func() {
 		It("Displays status information for all segments", func() {
 			ensureHubIsUp()
+			ensureAgentIsUp()
+
+			config := `[{
+  			  "content": 2,
+  			  "dbid": 7,
+  			  "hostname": "localhost"
+  			},
+  			{
+  			  "content": -1,
+  			  "dbid": 1,
+  			  "hostname": "localhost"
+  			}]`
+
+			testutils.WriteProvidedConfig(config)
 
 			statusSession := runCommand("status", "conversion")
 			Eventually(statusSession).Should(Exit(0))

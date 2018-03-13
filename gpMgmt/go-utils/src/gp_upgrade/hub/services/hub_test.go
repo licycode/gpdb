@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gp_upgrade/hub/configutils"
 )
 
 var _ = Describe("HubClient", func() {
@@ -35,13 +36,13 @@ var _ = Describe("HubClient", func() {
 		conns, err := hub.AgentConns()
 		Expect(err).ToNot(HaveOccurred())
 
-		Eventually(func() connectivity.State { return conns[0].GetState() }).Should(Equal(connectivity.Ready))
+		Eventually(func() connectivity.State { return conns[0].Conn.GetState() }).Should(Equal(connectivity.Ready))
 
 		By("closing the connections")
 		shutdown()
 		Expect(err).ToNot(HaveOccurred())
 
-		Eventually(func() connectivity.State { return conns[0].GetState() }).Should(Equal(connectivity.Shutdown))
+		Eventually(func() connectivity.State { return conns[0].Conn.GetState() }).Should(Equal(connectivity.Shutdown))
 	})
 
 	It("retrieves the agent connections from the config file reader", func() {
@@ -52,8 +53,10 @@ var _ = Describe("HubClient", func() {
 		conns, err := hub.AgentConns()
 		Expect(err).ToNot(HaveOccurred())
 
-		Eventually(func() connectivity.State { return conns[0].GetState() }).Should(Equal(connectivity.Ready))
-		Eventually(func() connectivity.State { return conns[1].GetState() }).Should(Equal(connectivity.Ready))
+		Eventually(func() connectivity.State { return conns[0].Conn.GetState() }).Should(Equal(connectivity.Ready))
+		Expect(conns[0].Hostname).To(Equal("localhost"))
+		Eventually(func() connectivity.State { return conns[1].Conn.GetState() }).Should(Equal(connectivity.Ready))
+		Expect(conns[1].Hostname).To(Equal("localhost"))
 	})
 
 	It("saves grpc connections for future calls", func() {
@@ -84,7 +87,7 @@ var _ = Describe("HubClient", func() {
 
 		agentA.Stop()
 
-		Eventually(func() connectivity.State { return conns[0].GetState() }).Should(Equal(connectivity.TransientFailure))
+		Eventually(func() connectivity.State { return conns[0].Conn.GetState() }).Should(Equal(connectivity.TransientFailure))
 
 		_, err = hub.AgentConns()
 		Expect(err).To(HaveOccurred())
@@ -123,8 +126,9 @@ var _ = Describe("HubClient", func() {
 })
 
 type spyReader struct {
-	hostnames    []string
-	hostnamesErr error
+	hostnames            []string
+	hostnamesErr         error
+	segmentConfiguration configutils.SegmentConfiguration
 }
 
 func newSpyReader() *spyReader {
@@ -133,6 +137,10 @@ func newSpyReader() *spyReader {
 
 func (m *spyReader) GetHostnames() ([]string, error) {
 	return m.hostnames, m.hostnamesErr
+}
+
+func (m *spyReader) GetSegmentConfiguration() configutils.SegmentConfiguration {
+	return m.segmentConfiguration
 }
 
 func (m *spyReader) OfOldClusterConfig() {}

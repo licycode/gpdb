@@ -13,6 +13,7 @@ type MockAgentServer struct {
 	addr       net.Addr
 	grpcServer *grpc.Server
 
+	StatusConversionRequest  *pb.CheckConversionStatusRequest
 	StatusConversionResponse *pb.CheckConversionStatusReply
 	StatusConversionErr      error
 }
@@ -41,7 +42,8 @@ func (m *MockAgentServer) CheckUpgradeStatus(context.Context, *pb.CheckUpgradeSt
 	return nil, nil
 }
 
-func (m *MockAgentServer) CheckConversionStatus(context.Context, *pb.CheckConversionStatusRequest) (*pb.CheckConversionStatusReply, error) {
+func (m *MockAgentServer) CheckConversionStatus(ctx context.Context, in *pb.CheckConversionStatusRequest) (*pb.CheckConversionStatusReply, error) {
+	m.StatusConversionRequest = in
 	return m.StatusConversionResponse, m.StatusConversionErr
 }
 

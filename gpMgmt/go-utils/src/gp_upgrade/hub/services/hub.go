@@ -9,10 +9,12 @@ import (
 	"gp_upgrade/hub/cluster"
 	"gp_upgrade/hub/upgradestatus"
 
+	"fmt"
 	"github.com/greenplum-db/gp-common-go-libs/gplog"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"gp_upgrade/hub/configutils"
+	"strings"
 )
 
 const (
@@ -25,13 +27,19 @@ type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (*
 
 type reader interface {
 	GetHostnames() ([]string, error)
+	GetSegmentConfiguration() configutils.SegmentConfiguration
 	OfOldClusterConfig()
+}
+
+type Connection struct {
+	Conn     *grpc.ClientConn
+	Hostname string
 }
 
 type HubClient struct {
 	Bootstrapper
 
-	agentConns   []*grpc.ClientConn
+	agentConns   []*Connection
 	clusterPair  cluster.PairOperator
 	configreader reader
 	grpcDialer   dialer
@@ -56,7 +64,7 @@ func NewHub(pair cluster.PairOperator, configReader reader, grpcDialer dialer) (
 	return h, h.closeConns
 }
 
-func (h *HubClient) AgentConns() ([]*grpc.ClientConn, error) {
+func (h *HubClient) AgentConns() ([]*Connection, error) {
 	if h.agentConns != nil {
 		err := h.ensureConnsAreReady()
 		if err != nil {
@@ -77,18 +85,24 @@ func (h *HubClient) AgentConns() ([]*grpc.ClientConn, error) {
 		if err != nil {
 			return nil, err
 		}
-		h.agentConns = append(h.agentConns, conn)
+		h.agentConns = append(h.agentConns, &Connection{
+			Conn:     conn,
+			Hostname: host,
+		})
 	}
 
 	return h.agentConns, nil
 }
 
 func (h *HubClient) ensureConnsAreReady() error {
+	var hostnames []string
 	for i := 0; i < 3; i++ {
 		ready := 0
 		for _, conn := range h.agentConns {
-			if conn.GetState() == connectivity.Ready {
+			if conn.Conn.GetState() == connectivity.Ready {
 				ready++
+			} else {
+				hostnames = append(hostnames, conn.Hostname)
 			}
 		}
 
@@ -99,14 +113,30 @@ func (h *HubClient) ensureConnsAreReady() error {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	return errors.New("at least one connection is not ready")
+	return fmt.Errorf("the connections to the following hosts were not ready: %s", strings.Join(hostnames, ","))
 }
 
 func (h *HubClient) closeConns() {
 	for _, conn := range h.agentConns {
-		err := conn.Close()
+		err := conn.Conn.Close()
 		if err != nil {
-			gplog.Info("Error closing hub to agent connection: ", err.Error())
+			gplog.Info(fmt.Sprintf("Error closing hub to agent connection. host: %s, err: %s", conn.Hostname, err.Error()))
 		}
 	}
+}
+
+func (h *HubClient) segmentsByHost() map[string]configutils.SegmentConfiguration {
+	segments := h.configreader.GetSegmentConfiguration()
+
+	segmentsByHost := make(map[string]configutils.SegmentConfiguration)
+	for _, segment := range segments {
+		host := segment.Hostname
+		if len(segmentsByHost[host]) == 0 {
+			segmentsByHost[host] = []configutils.Segment{segment}
+		} else {
+			segmentsByHost[host] = append(segmentsByHost[host], segment)
+		}
+	}
+
+	return segmentsByHost
 }

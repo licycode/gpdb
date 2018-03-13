@@ -40,6 +40,7 @@ It has these top-level messages:
 	CheckUpgradeStatusRequest
 	CheckUpgradeStatusReply
 	CheckConversionStatusRequest
+	SegmentInfo
 	CheckConversionStatusReply
 	FileSysUsage
 	CheckDiskUsageRequestToAgent

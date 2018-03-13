@@ -18,10 +18,18 @@ message CheckUpgradeStatusReply {
     string process_list = 1;
 }
 
-message CheckConversionStatusRequest {}
+message CheckConversionStatusRequest {
+    repeated SegmentInfo segments = 1;
+	string hostname = 2;
+}
+
+message SegmentInfo {
+	int32 content = 1;
+	int32 dbid = 2;
+}
 
 message CheckConversionStatusReply {
-    repeated string status = 1;
+    repeated string statuses = 1;
 }
 
 message FileSysUsage {

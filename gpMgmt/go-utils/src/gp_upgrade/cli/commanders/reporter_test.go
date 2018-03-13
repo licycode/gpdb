@@ -55,17 +55,13 @@ var _ = Describe("Reporter", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
-		It("returns an error when the hub returns no error, but the reply is nil or empty", func() {
-			By("having a nil reply")
+		It("returns an error when the hub returns no error, but the reply is empty", func() {
+			By("having an empty conversion status")
+			spyClient.statusConversionReply = &pb.StatusConversionReply{}
 			err := reporter.OverallConversionStatus()
 			Expect(err).To(HaveOccurred())
 
-			By("having an empty conversion status")
-			spyClient.statusConversionReply = &pb.StatusConversionReply{}
-			err = reporter.OverallConversionStatus()
-			Expect(err).To(HaveOccurred())
-
-			Expect(spyClient.statusConversionCount).To(Equal(2))
+			Expect(spyClient.statusConversionCount).To(Equal(1))
 		})
 	})
 
@@ -89,23 +85,19 @@ var _ = Describe("Reporter", func() {
 			Expect(testLogFile.Contents()).To(ContainSubstring("PENDING - Run pg_upgrade on master"))
 		})
 
-		It("returns an error when the hub returns no error, but the reply is nil or has an empty list", func() {
-			By("having a nil reply")
+		It("returns an error when the hub returns no error, but the reply has an empty list", func() {
+			By("having an empty status list")
+			spyClient.statusUpgradeReply = &pb.StatusUpgradeReply{}
 			err := reporter.OverallUpgradeStatus()
 			Expect(err).To(HaveOccurred())
 
-			By("having an empty status list")
-			spyClient.statusUpgradeReply = &pb.StatusUpgradeReply{}
-			err = reporter.OverallUpgradeStatus()
-			Expect(err).To(HaveOccurred())
-
-			Expect(spyClient.statusUpgradeCount).To(Equal(2))
+			Expect(spyClient.statusUpgradeCount).To(Equal(1))
 		})
 
 		DescribeTable("UpgradeStep Messages, basic cases where hub might return only one status",
 			func(step pb.UpgradeSteps, status pb.StepStatus, expected string) {
 				spyClient.statusUpgradeReply = &pb.StatusUpgradeReply{
-					[]*pb.UpgradeStepStatus{
+					ListOfUpgradeStepStatuses: []*pb.UpgradeStepStatus{
 						{Step: step, Status: status},
 					},
 				}

@@ -17,6 +17,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gp_upgrade/hub/configutils"
 )
 
 var _ = Describe("hub", func() {
@@ -34,6 +35,18 @@ var _ = Describe("hub", func() {
 
 		reader := spyReader{}
 		reader.hostnames = []string{"localhost", "localhost"}
+		reader.segmentConfiguration = configutils.SegmentConfiguration{
+			{
+				Content:  0,
+				DBID:     2,
+				Hostname: "localhost",
+			}, {
+				Content:  1,
+				DBID:     3,
+				Hostname: "localhost",
+			},
+		}
+
 		hubClient, shutdownHub = services.NewHub(nil, &reader, grpc.DialContext)
 	})
 
@@ -46,14 +59,25 @@ var _ = Describe("hub", func() {
 	It("receives a conversion status from each agent and returns all as single message", func() {
 		statusMessages := []string{"status", "status"}
 		agentA.StatusConversionResponse = &pb.CheckConversionStatusReply{
-			Status: statusMessages,
+			Statuses: statusMessages,
 		}
 
 		status, err := hubClient.StatusConversion(nil, &pb.StatusConversionRequest{})
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		statusList := strings.Split(status.GetConversionStatus(), "\n")
 		Expect(statusList).To(Equal([]string{"status", "status", "status", "status"}))
+		Expect(agentA.StatusConversionRequest.GetHostname()).To(Equal("localhost"))
+		Expect(agentA.StatusConversionRequest.GetSegments()).To(ConsistOf([]*pb.SegmentInfo{
+			{
+				Content: 0,
+				Dbid:    2,
+			},
+			{
+				Content: 1,
+				Dbid:    3,
+			},
+		}))
 	})
 
 	It("returns an error when AgentConns returns an error", func() {
